@@ -1,0 +1,8 @@
+{
+  "name": "the-absolute-pitch",
+  "version": "1.0.0",
+  "description": "Football Hub Sync Engine",
+  "main": "update-data.js",
+  "type": "module",
+  "dependencies": {}
+}
