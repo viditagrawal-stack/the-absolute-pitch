@@ -1,9 +1,9 @@
 import fetch from 'node-fetch';
 
 // CONFIGURATION VARIABLES
-const SUPABASE_URL = 'b0629a41db62468e82fd3c09d57f9308'; // Paste your Supabase URL
-const SUPABASE_KEY = 'https://pbeputavvfmbdvbdgmur.supabase.co'; // Paste your long anon public key
-const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBiZXB1dGF2dmZtYmR2YmRnbXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjU1NDYsImV4cCI6MjEwNjUwMTU0Nn0.PJUnHBy53vEn13ur_EQuFy6CighO1LeuVxZ76vh3z-w'; // Paste your Football-Data token
+const SUPABASE_URL = 'https://pbeputavvfmbdvbdgmur.supabase.co'; // Paste your Supabase URL
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBiZXB1dGF2dmZtYmR2YmRnbXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjU1NDYsImV4cCI6MjEwNjUwMTU0Nn0.PJUnHBy53vEn13ur_EQuFy6CighO1LeuVxZ76vh3z-w'; // Paste your long anon public key
+const API_KEY = 'b0629a41db62468e82fd3c09d57f9308'; // Paste your Football-Data token
 
 async function syncCompetitionData(compCode, compName) {
   console.log(`[SYNC] Starting fetch for ${compName} (${compCode})...`);
