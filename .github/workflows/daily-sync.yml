@@ -1,0 +1,23 @@
+name: Football Live Data Sync
+on:
+  schedule:
+    - cron: '0 0 * * *' # Tells GitHub: "Wake up and run this script every single night at midnight"
+  workflow_dispatch: # Allows you to also trigger it manually with a button click whenever you want
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout local repository code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js runtime environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install database and fetch dependencies
+        run: npm install
+
+      - name: Run our background script
+        run: node update-data.js
