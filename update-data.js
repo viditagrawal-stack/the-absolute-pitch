@@ -1,15 +1,17 @@
 import fetch from 'node-fetch';
 
 // CONFIGURATION VARIABLES
-const SUPABASE_URL = 'b0629a41db62468e82fd3c09d57f9308'; // Ensure NO '/rest/v1/' at the end
-const SUPABASE_KEY = 'https://pbeputavvfmbdvbdgmur.supabase.co'; // Your long anon public token
-const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBiZXB1dGF2dmZtYmR2YmRnbXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjU1NDYsImV4cCI6MjEwNjUwMTU0Nn0.PJUnHBy53vEn13ur_EQuFy6CighO1LeuVxZ76vh3z-w'; // Your Football-Data.org token
+const SUPABASE_URL = 'b0629a41db62468e82fd3c09d57f9308'; // Paste your Supabase URL
+const SUPABASE_KEY = 'https://pbeputavvfmbdvbdgmur.supabase.co'; // Paste your long anon public key
+const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBiZXB1dGF2dmZtYmR2YmRnbXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjU1NDYsImV4cCI6MjEwNjUwMTU0Nn0.PJUnHBy53vEn13ur_EQuFy6CighO1LeuVxZ76vh3z-w'; // Paste your Football-Data token
 
 async function syncCompetitionData(compCode, compName) {
   console.log(`[SYNC] Starting fetch for ${compName} (${compCode})...`);
   
-  // 1. Fetch live data from the free Football API using proper backtick syntax
-  const apiResponse = await fetch(`https://football-data.org{compCode}/standings`, {
+  // 1. Fixed URL with clean string handling to completely prevent variable typos
+  const apiUrl = 'https://football-data.org' + compCode + '/standings';
+  
+  const apiResponse = await fetch(apiUrl, {
     headers: { 'X-Auth-Token': API_KEY }
   });
   
@@ -20,7 +22,7 @@ async function syncCompetitionData(compCode, compName) {
   const apiData = await apiResponse.json();
   console.log(`[SYNC] Successfully downloaded ${compName} data.`);
 
-  // 2. Format the payload safely into columns
+  // 2. Format the layout arrays safely
   const rawTable = apiData.standings && apiData.standings[0] && apiData.standings[0].table ? apiData.standings[0].table : [];
 
   const formattedPayload = {
@@ -40,13 +42,13 @@ async function syncCompetitionData(compCode, compName) {
     matches: []
   };
 
-  // 3. Save into Supabase using the match filter
-  console.log(`[DATABASE] Pushing ${compName} payload to Supabase...`);
-  const dbResponse = await fetch(`${SUPABASE_URL}/rest/v1/football_live_data?competition_name=eq.${encodeURIComponent(compName)}`, {
+  // 3. Save directly into Supabase rows filtered by name
+  console.log(`[DATABASE] Pushing ${compName} matrix payload to Supabase...`);
+  const dbResponse = await fetch(SUPABASE_URL + '/rest/v1/football_live_data?competition_name=eq.' + encodeURIComponent(compName), {
     method: 'PATCH',
     headers: {
       'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
@@ -68,8 +70,7 @@ async function runMainSync() {
     // Run the sync engine for the Premier League (PL)
     await syncCompetitionData('PL', 'Premier League');
     
-    // Cool down for 10 seconds to respect free tier request limits
-    console.log("[THROTTLE] Cooling down for 10 seconds to avoid API blocks...");
+    console.log("[THROTTLE] Cooling down for 10 seconds to avoid free API limit blocks...");
     await new Promise(resolve => setTimeout(resolve, 10000));
     
     // Run the sync engine for La Liga (PD)
@@ -85,3 +86,4 @@ async function runMainSync() {
 }
 
 runMainSync();
+
