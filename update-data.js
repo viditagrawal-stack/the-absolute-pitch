@@ -9,7 +9,7 @@ async function syncCompetitionData(compCode, compName) {
   console.log(`[SYNC] Starting fetch for ${compName} (${compCode})...`);
   
   // 1. Build a clean URL path string pointing to the official endpoints
-  const apiUrl = 'https://football-data.org' + compCode + '/standings';
+  const apiUrl = 'https://www.football-data.org' + compCode + '/standings';
   
   const apiResponse = await fetch(apiUrl, {
     headers: { 'X-Auth-Token': API_KEY }
