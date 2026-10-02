@@ -1,112 +1,87 @@
-// update-data.js — Node 18+ (uses built-in fetch)
-// Run once:   node update-data.js
-// Keep alive: node update-data.js --loop   (refreshes every 60s)
+import fetch from 'node-fetch';
 
-const FOOTBALL_API_KEY = 'b0629a41db62468e82fd3c09d57f9308';
-const SUPABASE_URL = 'https://pbeputavvfmbdvbdgmur.supabase.co';  
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBiZXB1dGF2dmZtYmR2YmRnbXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjU1NDYsImV4cCI6MjEwNjUwMTU0Nn0.PJUnHBy53vEn13ur_EQuFy6CighO1LeuVxZ76vh3z-w';   // service_role key (keep private, server-only)
+// CONFIGURATION VARIABLES
+const SUPABASE_URL = 'b0629a41db62468e82fd3c09d57f9308'; // Ensure NO '/rest/v1/' at the end
+const SUPABASE_KEY = 'https://pbeputavvfmbdvbdgmur.supabase.co'; // Your long anon public token
+const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBiZXB1dGF2dmZtYmR2YmRnbXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjU1NDYsImV4cCI6MjEwNjUwMTU0Nn0.PJUnHBy53vEn13ur_EQuFy6CighO1LeuVxZ76vh3z-w'
+; // Your Football-Data.org token
 
-const COMPETITIONS = ['PL', 'PD', 'CL']; // stored in competition_name
-const TABLE = 'football_live_data';
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const iso = (d) => d.toISOString().slice(0, 10);
-
-async function fd(path) {
-  const res = await fetch(`https://api.football-data.org/v4${path}`, {
-    headers: { 'X-Auth-Token': FOOTBALL_API_KEY },
+async function syncCompetitionData(compCode, compName) {
+  console.log(`[SYNC] Starting fetch for ${compName} (${compCode})...`);
+  
+  // 1. Fetch live data from the free Football API
+  const apiResponse = await fetch(`https://football-data.org{compCode}/standings`, {
+    headers: { 'X-Auth-Token': API_KEY }
   });
-  if (!res.ok) throw new Error(`Football-Data ${res.status} on ${path}: ${await res.text()}`);
-  return res.json();
-}
+  
+  if (!apiResponse.ok) {
+    throw new Error(`API returned error status ${apiResponse.status} for ${compName}`);
+  }
+  
+  const apiData = await apiResponse.json();
+  console.log(`[SYNC] Successfully downloaded ${compName} data.`);
 
-async function sb(path, method, body) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    method,
+  // 2. Format the payload into clean, universal components for our HTML site
+  const formattedPayload = {
+    updated: new Date().toISOString(),
+    standings: apiData.standings?.[0]?.table?.map(t => ({
+      position: t.position,
+      team: t.team.name,
+      crest: t.team.crest,
+      played: t.playedGames,
+      won: t.won,
+      draw: t.draw,
+      lost: t.lost,
+      gd: t.goalDifference,
+      points: t.points,
+      form: t.form
+    })) || [],
+    matches: [] // Ready to hold future matches
+  };
+
+  // 3. Save into Supabase Row 1 (Updating the single cloud payload cell)
+  console.log(`[DATABASE] Pushing ${compName} clean matrix payload to Supabase...`);
+  const dbResponse = await fetch(`${SUPABASE_URL}/rest/v1/football_live_data?competition_name=eq.${encodeURIComponent(compName)}`, {
+    method: 'PATCH',
     headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
       'Content-Type': 'application/json',
-      Prefer: 'return=representation',
+      'Prefer': 'resolution=merge-duplicates'
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      competition_name: compName,
+      json_payload: formattedPayload
+    })
   });
-  if (!res.ok) throw new Error(`Supabase ${res.status}: ${await res.text()}`);
-  return res.json();
+
+  if (!dbResponse.ok) {
+    const textError = await dbResponse.text();
+    throw new Error(`Database patch failed: ${dbResponse.status} - ${textError}`);
+  }
+  
+  console.log(`[SUCCESS] Cloud sync complete for ${compName}!`);
 }
 
-async function save(code, payload) {
-  // PATCH the row if it exists, otherwise POST a new one
-  const updated = await sb(`${TABLE}?competition_name=eq.${code}`, 'PATCH', { json_payload: payload });
-  if (updated.length === 0) {
-    await sb(TABLE, 'POST', { competition_name: code, json_payload: payload });
-    console.log(`  inserted new row for ${code}`);
+async function runMainSync() {
+  try {
+    // Run the sync engine for the Premier League (PL)
+    await syncCompetitionData('PL', 'Premier League');
+    
+    // To comply with the free tier's 10 requests/min throttle limit, wait 10 seconds before hitting La Liga
+    console.log("[THROTTLE] Cooling down for 10 seconds to avoid free API limit blocks...");
+    await new Promise(resolve => setTimeout(resolve, 10000));
+    
+    // Run the sync engine for La Liga (PD)
+    await syncCompetitionData('PD', 'La Liga');
+
+    console.log("[COMPLETE] Everything updated perfectly on autopilot!");
+    process.exit(0);
+  } catch (err) {
+    console.error("\n❌ CRITICAL SYNC ENGINE FAILURE:");
+    console.error(err.message);
+    process.exit(1); // Forces an explicit system exit showing real error codes
   }
 }
 
-function parseStandings(data) {
-  const group = (data.standings || []).find((s) => s.type === 'TOTAL') || (data.standings || [])[0];
-  return (group?.table || []).map((r) => ({
-    position: r.position,
-    team: r.team.shortName || r.team.name,
-    crest: r.team.crest,
-    played: r.playedGames,
-    won: r.won,
-    draw: r.draw,
-    lost: r.lost,
-    gf: r.goalsFor,
-    ga: r.goalsAgainst,
-    gd: r.goalDifference,
-    points: r.points,
-    form: r.form || '',
-  }));
-}
-
-function parseMatches(data) {
-  return (data.matches || []).map((m) => ({
-    id: m.id,
-    date: m.utcDate,
-    status: m.status, // SCHEDULED, TIMED, IN_PLAY, PAUSED, FINISHED...
-    matchday: m.matchday,
-    home: m.homeTeam.shortName || m.homeTeam.name,
-    away: m.awayTeam.shortName || m.awayTeam.name,
-    homeScore: m.score?.fullTime?.home ?? null,
-    awayScore: m.score?.fullTime?.away ?? null,
-  }));
-}
-
-async function updateAll() {
-  const from = new Date(Date.now() - 7 * 864e5);
-  const to = new Date(Date.now() + 7 * 864e5);
-  console.log(`[${new Date().toLocaleTimeString()}] Syncing...`);
-
-  for (const code of COMPETITIONS) {
-    try {
-      const standingsRaw = await fd(`/competitions/${code}/standings`);
-      await sleep(7000); // free tier = 10 requests/min
-      const matchesRaw = await fd(`/competitions/${code}/matches?dateFrom=${iso(from)}&dateTo=${iso(to)}`);
-      await sleep(7000);
-
-      await save(code, {
-        updated: new Date().toISOString(),
-        season: standingsRaw.season?.startDate?.slice(0, 4),
-        standings: parseStandings(standingsRaw),
-        matches: parseMatches(matchesRaw),
-      });
-      console.log(`  ✓ ${code} saved`);
-    } catch (err) {
-      console.error(`  ✗ ${code} failed:`, err.message);
-    }
-  }
-}
-
-(async () => {
-  await updateAll();
-  if (process.argv.includes('--loop')) {
-    // ~42s of waiting is already built in per run; loop again after 60s
-    while (true) {
-      await sleep(60000);
-      await updateAll();
-    }
-  }
-})();
+runMainSync();
