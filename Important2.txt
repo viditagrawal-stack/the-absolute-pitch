@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MatchDay Hub</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{background:#07090f;color:#e5e7eb;font-family:system-ui,sans-serif}
+  .card{background:#0f1420;border:1px solid #1c2437;border-radius:16px}
+  .tab.active{background:#22c55e;color:#04120a}
+  canvas{touch-action:none;border-radius:12px;max-width:100%}
+</style>
+</head>
+<body class="min-h-screen">
+<header class="sticky top-0 z-10 bg-[#07090f]/90 backdrop-blur border-b border-[#1c2437]">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+    <h1 class="text-xl font-black tracking-tight">⚽ MATCHDAY <span class="text-green-400">HUB</span></h1>
+    <nav class="hidden sm:flex gap-5 text-sm text-gray-400">
+      <a href="#centre" class="hover:text-white">Match Centre</a><a href="#media" class="hover:text-white">Media Room</a>
+      <a href="#games" class="hover:text-white">Games</a><a href="#predict" class="hover:text-white">Predictions</a><a href="#totw" class="hover:text-white">Team of the Week</a>
+    </nav>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 py-6 space-y-10">
+
+<!-- MATCH CENTRE -->
+<section id="centre">
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <h2 class="text-2xl font-bold">Live Match Centre</h2>
+    <div class="flex gap-2" id="tabs"></div>
+  </div>
+  <p id="updated" class="text-xs text-gray-500 mb-3">Loading…</p>
+  <div class="grid lg:grid-cols-5 gap-4">
+    <div class="card p-3 lg:col-span-3 overflow-x-auto">
+      <table class="w-full text-sm"><thead class="text-gray-500 text-xs"><tr>
+        <th class="text-left p-2">#</th><th class="text-left">Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th><th>Form</th></tr></thead>
+        <tbody id="standings"></tbody></table>
+    </div>
+    <div class="card p-3 lg:col-span-2 max-h-[560px] overflow-y-auto" id="fixtures"></div>
+  </div>
+</section>
+
+<!-- MEDIA ROOM -->
+<section id="media">
+  <h2 class="text-2xl font-bold mb-1">Media Room</h2>
+  <p class="text-xs text-gray-500 mb-4">Fan-made parody in the style of transfer tweets and pundit rants. These are fictional, sample posts with made-up handles, not real quotes. Follow the real accounts for real news.</p>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="space-y-3" id="tweets"></div>
+    <div class="space-y-3" id="rants"></div>
+  </div>
+  <div class="mt-4 flex gap-3 text-sm">
+    <a class="text-green-400 underline" target="_blank" rel="noopener" href="https://x.com/FabrizioRomano">Real: Fabrizio Romano on X</a>
+    <a class="text-green-400 underline" target="_blank" rel="noopener" href="https://x.com/Carra23">Real: Jamie Carragher on X</a>
+  </div>
+</section>
+
+<!-- GAMES -->
+<section id="games" class="grid lg:grid-cols-2 gap-4">
+  <div class="card p-4">
+    <h3 class="text-xl font-bold mb-1">🎯 Swerve It Like Rashford</h3>
+    <p class="text-xs text-gray-400 mb-2">Move the mouse to aim, slide to add curve, click to shoot. Beat the wall and the keeper. 5 kicks.</p>
+    <canvas id="game" width="420" height="440" class="bg-green-800 w-full"></canvas>
+    <div class="flex items-center gap-3 mt-2 text-sm">
+      <span>Curve</span><input id="curve" type="range" min="-150" max="150" value="0" class="flex-1">
+      <button id="restart" class="px-3 py-1 rounded bg-green-500 text-black font-semibold">Restart</button>
+    </div>
+    <p id="gstat" class="mt-2 text-sm font-semibold"></p>
+  </div>
+  <div class="card p-4">
+    <h3 class="text-xl font-bold mb-1">🕵️ Guess the Superstar</h3>
+    <p class="text-xs text-gray-400 mb-3">Fewer clues = more points. Clubs as of the start of 2026/27; check for transfers.</p>
+    <ul id="clues" class="space-y-1 text-sm mb-3"></ul>
+    <div class="flex gap-2">
+      <input id="guess" placeholder="Surname…" class="flex-1 bg-[#07090f] border border-[#1c2437] rounded px-3 py-2">
+      <button id="gbtn" class="px-4 rounded bg-green-500 text-black font-semibold">Guess</button>
+      <button id="cbtn" class="px-3 rounded border border-[#1c2437]">+ Clue</button>
+    </div>
+    <p id="gmsg" class="mt-3 text-sm"></p>
+    <p class="mt-1 text-sm text-gray-400">Score: <b id="gscore" class="text-white">0</b></p>
+  </div>
+</section>
+
+<!-- PREDICTIONS -->
+<section id="predict">
+  <h2 class="text-2xl font-bold mb-4">Score Predictions</h2>
+  <div id="pred" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+</section>
+
+<!-- TEAM OF THE WEEK -->
+<section id="totw" class="grid lg:grid-cols-5 gap-4">
+  <div class="lg:col-span-3">
+    <h2 class="text-2xl font-bold mb-1">Team of the Week (4-3-3)</h2>
+    <p class="text-xs text-gray-500 mb-3">Sample picks and ratings. Edit the <code>TOTW</code> array in the script.</p>
+    <div id="pitch" class="relative rounded-2xl overflow-hidden h-[520px] border border-[#1c2437]" style="background:repeating-linear-gradient(0deg,#14532d 0 52px,#166534 52px 104px)">
+      <div class="absolute inset-3 border-2 border-white/30 rounded"></div>
+      <div class="absolute left-3 right-3 top-1/2 border-t-2 border-white/30"></div>
+    </div>
+  </div>
+  <div class="lg:col-span-2">
+    <h2 class="text-2xl font-bold mb-3">Top 5 Players</h2>
+    <div id="top5" class="space-y-2"></div>
+  </div>
+</section>
+</main>
+<footer class="text-center text-xs text-gray-600 py-8">Data from Football-Data.org via Supabase. Not affiliated with any league or club.</footer>
+
+<script>
+/* ============ CONFIG ============ */
+const SUPABASE_URL = 'https://pbeputavvfmbdvbdgmur.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBiZXB1dGF2dmZtYmR2YmRnbXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjU1NDYsImV4cCI6MjEwNjUwMTU0Nn0.PJUnHBy53vEn13ur_EQuFy6CighO1LeuVxZ76vh3z-w'; // use the public ANON key here, never the service key
+const $ = (id) => document.getElementById(id);
+
+/* ============ MATCH CENTRE ============ */
+const NAMES = { PL: 'Premier League', PD: 'La Liga', CL: 'Champions League' };
+let DATA = {}, current = 'PL';
+
+async function load() {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/football_live_data?select=competition_name,json_payload`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    if (!r.ok) throw new Error(r.status);
+    (await r.json()).forEach(row => DATA[row.competition_name] = row.json_payload);
+    renderCentre(); renderPred();
+  } catch (e) {
+    $('updated').textContent = 'Could not load data. Check your Supabase URL/key and read policy (RLS).';
+  }
+}
+function renderTabs() {
+  $('tabs').innerHTML = Object.keys(NAMES).map(k =>
+    `<button data-k="${k}" class="tab px-4 py-1.5 rounded-full text-sm border border-[#1c2437] ${k===current?'active':''}">${NAMES[k]}</button>`).join('');
+  document.querySelectorAll('.tab').forEach(b => b.onclick = () => { current = b.dataset.k; renderTabs(); renderCentre(); });
+}
+function renderCentre() {
+  const d = DATA[current];
+  if (!d) { $('standings').innerHTML = '<tr><td colspan="9" class="p-4 text-gray-500">No data yet. Run update-data.js.</td></tr>'; return; }
+  $('updated').textContent = 'Last synced: ' + new Date(d.updated).toLocaleString();
+  const form = f => (f||'').split(',').filter(Boolean).map(c =>
+    `<span class="inline-block w-4 h-4 rounded-sm text-[10px] text-center text-black ${c==='W'?'bg-green-400':c==='D'?'bg-gray-400':'bg-red-400'}">${c}</span>`).join(' ');
+  $('standings').innerHTML = d.standings.map(t => `
+    <tr class="border-t border-[#1c2437] text-center"><td class="p-2 text-left text-gray-400">${t.position}</td>
+    <td class="text-left font-medium">${t.crest?`<img src="${t.crest}" class="inline w-5 h-5 mr-2">`:''}${t.team}</td>
+    <td>${t.played}</td><td>${t.won}</td><td>${t.draw}</td><td>${t.lost}</td><td>${t.gd}</td><td class="font-bold">${t.points}</td><td>${form(t.form)}</td></tr>`).join('');
+  const ms = [...d.matches].sort((a,b) => new Date(b.date) - new Date(a.date));
+  $('fixtures').innerHTML = '<h3 class="font-semibold mb-2">Recent &amp; upcoming</h3>' + ms.map(m => {
+    const live = ['IN_PLAY','PAUSED'].includes(m.status), done = m.status === 'FINISHED';
+    const mid = (done||live) ? `${m.homeScore ?? 0} - ${m.awayScore ?? 0}` : new Date(m.date).toLocaleString([], {weekday:'short',hour:'2-digit',minute:'2-digit'});
+    return `<div class="flex items-center justify-between py-2 border-t border-[#1c2437] text-sm">
+      <span class="w-2/5 truncate">${m.home}</span>
+      <span class="${live?'text-red-400 animate-pulse font-bold':'text-gray-300'} text-center">${live?'● ':''}${mid}</span>
+      <span class="w-2/5 truncate text-right">${m.away}</span></div>`; }).join('');
+}
+
+/* ============ MEDIA ROOM (fictional samples) ============ */
+const TWEETS = [
+  { text: 'Sample Club A have agreed a fee for Sample Player. Medical booked tomorrow. HERE WE GO! 🚨⚪️', time: '2h' },
+  { text: 'Sample Winger signs a new long-term contract. Official statement expected this week. 🔴✍️', time: '5h' },
+  { text: 'Sample Striker open to leaving in January. Three clubs informed. Talks ongoing. 🌍', time: '1d' },
+];
+const RANTS = [
+  'The press is high, the line is high, and nobody is covering the space behind. You cannot defend like that and expect to win games. It is not about the keeper, it is about the shape.',
+  'A midfielder has to protect the back four. Two lads running forward at the same time? That is the goal conceded before it happens.',
+  'Great teams win ugly. They do not need to be pretty every week, they need to be organised and ruthless when it matters.',
+];
+$('tweets').innerHTML = TWEETS.map(t => `<div class="card p-4"><div class="flex items-center gap-2 mb-2">
+  <div class="w-9 h-9 rounded-full bg-sky-500 grid place-items-center font-bold text-black">T</div>
+  <div><div class="text-sm font-semibold">Transfer Desk <span class="text-sky-400">✔</span></div><div class="text-xs text-gray-500">@sample_transfer_desk · ${t.time} · parody</div></div></div>
+  <p class="text-sm">${t.text}</p></div>`).join('');
+$('rants').innerHTML = RANTS.map(t => `<div class="card p-4 border-l-4 border-l-green-500"><div class="text-xs text-green-400 mb-1">🎙️ Tactical Rant · parody pundit</div><p class="text-sm italic">"${t}"</p></div>`).join('');
+
+/* ============ SWERVE IT GAME ============ */
+const cv = $('game'), cx = cv.getContext('2d');
+let aimX = 210, shots, goals, ball, keeper, over;
+const GOAL = { x: 110, w: 200, y: 40 }, WALL = { x: 150, w: 120, y: 250, h: 22 }, START = { x: 210, y: 400 };
+function reset() { shots = 5; goals = 0; ball = null; keeper = { x: 210, dir: 1 }; over = false; $('gstat').textContent = 'Goals: 0 / Shots left: 5'; }
+cv.addEventListener('mousemove', e => { const r = cv.getBoundingClientRect(); aimX = (e.clientX - r.left) * cv.width / r.width; });
+cv.addEventListener('touchmove', e => { const r = cv.getBoundingClientRect(); aimX = (e.touches[0].clientX - r.left) * cv.width / r.width; });
+cv.addEventListener('click', shoot); cv.addEventListener('touchend', shoot);
+$('restart').onclick = reset;
+function shoot() {
+  if (ball || over) return;
+  const tx = Math.min(GOAL.x + GOAL.w + 30, Math.max(GOAL.x - 30, aimX));
+  ball = { t: 0, tx, curve: +$('curve').value, x: START.x, y: START.y };
+}
+function finish(msg, scored) {
+  if (scored) goals++; shots--; ball = null;
+  $('gstat').textContent = `${msg}  Goals: ${goals} / Shots left: ${shots}`;
+  if (shots === 0) { over = true; $('gstat').textContent = `Full time! You scored ${goals}/5. ${goals>=4?'Rashford would be proud 🔥':'Press Restart to try again.'}`; }
+}
+function loop() {
+  cx.clearRect(0, 0, cv.width, cv.height);
+  cx.fillStyle = '#166534'; cx.fillRect(0, 0, 420, 440);
+  cx.strokeStyle = '#fff'; cx.lineWidth = 3; cx.strokeRect(GOAL.x, GOAL.y, GOAL.w, 40);       // goal
+  cx.fillStyle = 'rgba(255,255,255,.12)'; cx.fillRect(GOAL.x, GOAL.y, GOAL.w, 40);
+  keeper.x += keeper.dir * (ball ? 2.6 : 1.5);
+  if (keeper.x > GOAL.x + GOAL.w - 20 || keeper.x < GOAL.x + 20) keeper.dir *= -1;
+  cx.fillStyle = '#facc15'; cx.fillRect(keeper.x - 18, GOAL.y + 8, 36, 24);                   // keeper
+  cx.fillStyle = '#ef4444';                                                                   // wall
+  for (let i = 0; i < 4; i++) { cx.beginPath(); cx.arc(WALL.x + 15 + i * 30, WALL.y + 10, 14, 0, 7); cx.fill(); }
+  if (!ball && !over) {                                                                       // aim line
+    cx.setLineDash([6, 6]); cx.strokeStyle = 'rgba(255,255,255,.6)'; cx.beginPath();
+    cx.moveTo(START.x, START.y); cx.quadraticCurveTo((START.x + aimX) / 2 + (+$('curve').value), 240, aimX, GOAL.y + 20); cx.stroke(); cx.setLineDash([]);
+  }
+  if (ball) {
+    ball.t += 0.016;
+    const t = Math.min(ball.t, 1), cxp = (START.x + ball.tx) / 2 + ball.curve, cyp = 240, ey = GOAL.y + 20;
+    ball.x = (1-t)*(1-t)*START.x + 2*(1-t)*t*cxp + t*t*ball.tx;
+    ball.y = (1-t)*(1-t)*START.y + 2*(1-t)*t*cyp + t*t*ey;
+    if (ball.y < WALL.y + WALL.h && ball.y > WALL.y - 10 && ball.x > WALL.x - 5 && ball.x < WALL.x + WALL.w + 5) finish('Blocked by the wall! 🧱', false);
+    else if (t >= 1) {
+      if (ball.x < GOAL.x || ball.x > GOAL.x + GOAL.w) finish('Wide! 😬', false);
+      else if (Math.abs(ball.x - keeper.x) < 24) finish('Saved! 🧤', false);
+      else finish('GOAL! ⚽🔥', true);
+    }
+    if (ball) { cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(ball.x, ball.y, 8 - 3 * ball.t, 0, 7); cx.fill(); }
+  } else { cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(START.x, START.y, 8, 0, 7); cx.fill(); }
+  requestAnimationFrame(loop);
+}
+reset(); loop();
+
+/* ============ GUESS THE PLAYER ============ */
+const PLAYERS = [
+  { n: 'Haaland', c: ['Nationality: Norway', 'Position: Striker', 'Club: Manchester City', 'Fact: Former Borussia Dortmund forward', 'Shirt number: 9'] },
+  { n: 'Mbappe', c: ['Nationality: France', 'Position: Forward', 'Club: Real Madrid', 'Fact: Won the 2018 World Cup as a teenager', 'Shirt number: 10'] },
+  { n: 'Bellingham', c: ['Nationality: England', 'Position: Midfielder', 'Club: Real Madrid', 'Fact: Former Borussia Dortmund midfielder', 'Shirt number: 5'] },
+  { n: 'Yamal', c: ['Nationality: Spain', 'Position: Winger', 'Club: Barcelona', 'Fact: Won Euro 2024 as a teenager', 'Shirt number: 10'] },
+  { n: 'Salah', c: ['Nationality: Egypt', 'Position: Winger', 'Club: Liverpool', 'Fact: Former AS Roma and Chelsea player', 'Shirt number: 11'] },
+];
+let cur, shown, gscore = 0;
+const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+function newRound() { cur = PLAYERS[Math.floor(Math.random() * PLAYERS.length)]; shown = 1; $('gmsg').textContent = ''; $('guess').value = ''; drawClues(); }
+function drawClues() { $('clues').innerHTML = cur.c.slice(0, shown).map((c, i) => `<li class="card px-3 py-1.5">${i + 1}. ${c}</li>`).join(''); }
+$('cbtn').onclick = () => { if (shown < 5) { shown++; drawClues(); } else $('gmsg').textContent = 'No more clues!'; };
+$('gbtn').onclick = () => {
+  if (norm($('guess').value) === norm(cur.n)) { const p = 6 - shown; gscore += p; $('gscore').textContent = gscore; $('gmsg').innerHTML = `✅ Correct, it's <b>${cur.n}</b>! +${p} pts`; setTimeout(newRound, 1500); }
+  else $('gmsg').textContent = '❌ Not quite, try again or take another clue.';
+};
+$('guess').addEventListener('keydown', e => e.key === 'Enter' && $('gbtn').click());
+newRound();
+
+/* ============ PREDICTIONS (localStorage) ============ */
+const FALLBACK = [{ id: 'd1', home: 'Arsenal', away: 'Man City' }, { id: 'd2', home: 'Real Madrid', away: 'Barcelona' }, { id: 'd3', home: 'Liverpool', away: 'Chelsea' }];
+const store = () => { try { return JSON.parse(localStorage.getItem('preds') || '{}'); } catch { return {}; } };
+function renderPred() {
+  const up = Object.values(DATA).flatMap(d => d.matches).filter(m => ['SCHEDULED', 'TIMED'].includes(m.status))
+    .sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 6);
+  const list = up.length ? up : FALLBACK, saved = store();
+  $('pred').innerHTML = list.map(m => { const p = saved[m.id] || {};
+    return `<div class="card p-4"><div class="text-xs text-gray-500 mb-2">${m.date ? new Date(m.date).toLocaleString() : 'Sample fixture'}</div>
+    <div class="flex items-center justify-between gap-2"><span class="text-sm w-1/3 truncate">${m.home}</span>
+    <input type="number" min="0" max="20" data-id="${m.id}" data-s="h" value="${p.h ?? ''}" class="w-12 text-center bg-[#07090f] border border-[#1c2437] rounded py-1">
+    <span>-</span><input type="number" min="0" max="20" data-id="${m.id}" data-s="a" value="${p.a ?? ''}" class="w-12 text-center bg-[#07090f] border border-[#1c2437] rounded py-1">
+    <span class="text-sm w-1/3 truncate text-right">${m.away}</span></div>
+    <div class="text-xs text-green-400 mt-2 h-4" id="ok-${m.id}">${p.h !== undefined ? '✓ Saved' : ''}</div></div>`; }).join('');
+  document.querySelectorAll('#pred input').forEach(i => i.oninput = () => {
+    const s = store(), id = i.dataset.id; s[id] = s[id] || {}; s[id][i.dataset.s] = i.value;
+    try { localStorage.setItem('preds', JSON.stringify(s)); $('ok-' + id).textContent = '✓ Saved'; } catch {}
+  });
+}
+
+/* ============ TEAM OF THE WEEK + TOP 5 (sample data, edit freely) ============ */
+const TOTW = [
+  { n: 'Alisson', r: 8.1, x: 50, y: 90 },
+  { n: 'Saliba', r: 8.4, x: 62, y: 72 }, { n: 'Van Dijk', r: 8.2, x: 38, y: 72 }, { n: 'Hakimi', r: 7.9, x: 85, y: 74 }, { n: 'Gvardiol', r: 7.8, x: 15, y: 74 },
+  { n: 'Rodri', r: 8.5, x: 50, y: 54 }, { n: 'Pedri', r: 8.3, x: 70, y: 46 }, { n: 'Odegaard', r: 8.0, x: 30, y: 46 },
+  { n: 'Salah', r: 9.1, x: 84, y: 20 }, { n: 'Haaland', r: 9.4, x: 50, y: 12 }, { n: 'Vinicius Jr', r: 8.9, x: 16, y: 20 },
+];
+$('pitch').insertAdjacentHTML('beforeend', TOTW.map(p => `<div class="absolute -translate-x-1/2 -translate-y-1/2 text-center" style="left:${p.x}%;top:${p.y}%">
+  <div class="w-11 h-11 rounded-full bg-green-400 text-black font-black grid place-items-center mx-auto shadow-lg text-sm">${p.r}</div>
+  <div class="text-[11px] font-semibold mt-1 bg-black/60 rounded px-1.5">${p.n}</div></div>`).join(''));
+const TOP5 = [
+  { n: 'Erling Haaland', t: 'Man City', s: '2 goals · 1 assist' }, { n: 'Mohamed Salah', t: 'Liverpool', s: '1 goal · 2 assists' },
+  { n: 'Vinicius Jr', t: 'Real Madrid', s: '2 goals · 1 key pass' }, { n: 'Rodri', t: 'Man City', s: '94% passing · 5 tackles' }, { n: 'William Saliba', t: 'Arsenal', s: 'Clean sheet · 8 clearances' },
+];
+$('top5').innerHTML = TOP5.map((p, i) => `<div class="card p-3 flex items-center gap-3">
+  <div class="text-2xl font-black ${i === 0 ? 'text-yellow-400' : 'text-gray-500'}">${i + 1}</div>
+  <div class="flex-1"><div class="font-semibold">${p.n}</div><div class="text-xs text-gray-400">${p.t} · ${p.s}</div></div>
+  <div class="text-green-400 font-bold">${(9.4 - i * 0.3).toFixed(1)}</div></div>`).join('');
+
+/* ============ START ============ */
+renderTabs(); load(); setInterval(load, 60000);
+</script>
+</body>
+</html>
