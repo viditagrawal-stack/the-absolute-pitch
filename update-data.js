@@ -1,14 +1,14 @@
 import fetch from 'node-fetch';
 
-// CONFIGURATION VARIABLES
-const SUPABASE_URL = 'https://pbeputavvfmbdvbdgmur.supabase.co'; // Paste your Supabase URL
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBiZXB1dGF2dmZtYmR2YmRnbXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjU1NDYsImV4cCI6MjEwNjUwMTU0Nn0.PJUnHBy53vEn13ur_EQuFy6CighO1LeuVxZ76vh3z-w'; // Paste your long anon public key
-const API_KEY = 'b0629a41db62468e82fd3c09d57f9308'; // Paste your Football-Data token
+// CONFIGURATION VARIABLES (Preloaded with your valid keys)
+const SUPABASE_URL = 'https://supabase.co'; 
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBiZXB1dGF2dmZtYmR2YmRnbXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjU1NDYsImV4cCI6MjEwNjUwMTU0Nn0.PJUnHBy53vEn13ur_EQuFy6CighO1LeuVxZ76vh3z-w'; 
+const API_KEY = 'b0629a41db62468e82fd3c09d57f9308'; 
 
 async function syncCompetitionData(compCode, compName) {
   console.log(`[SYNC] Starting fetch for ${compName} (${compCode})...`);
   
-  // 1. Fixed URL with clean string handling to completely prevent variable typos
+  // 1. Build a clean URL path string pointing to the official endpoints
   const apiUrl = 'https://football-data.org' + compCode + '/standings';
   
   const apiResponse = await fetch(apiUrl, {
@@ -22,8 +22,17 @@ async function syncCompetitionData(compCode, compName) {
   const apiData = await apiResponse.json();
   console.log(`[SYNC] Successfully downloaded ${compName} data.`);
 
-  // 2. Format the layout arrays safely
-  const rawTable = apiData.standings && apiData.standings[0] && apiData.standings[0].table ? apiData.standings[0].table : [];
+  // 2. Safe array extractor handling both standard league tables and tournament group arrays
+  let rawTable = [];
+  if (apiData.standings) {
+    if (apiData.standings.table) {
+      rawTable = apiData.standings.table;
+    } else if (Array.isArray(apiData.standings) && apiData.standings[0] && apiData.standings[0].table) {
+      rawTable = apiData.standings[0].table;
+    } else if (apiData.standings.standings && Array.isArray(apiData.standings.standings) && apiData.standings.standings[0] && apiData.standings.standings[0].table) {
+      rawTable = apiData.standings.standings[0].table;
+    }
+  }
 
   const formattedPayload = {
     updated: new Date().toISOString(),
@@ -42,8 +51,8 @@ async function syncCompetitionData(compCode, compName) {
     matches: []
   };
 
-  // 3. Save directly into Supabase rows filtered by name
-  console.log(`[DATABASE] Pushing ${compName} matrix payload to Supabase...`);
+  // 3. Update the records inside the Supabase cloud table rows using the filter
+  console.log(`[DATABASE] Pushing ${compName} payload matrix into Supabase rows...`);
   const dbResponse = await fetch(SUPABASE_URL + '/rest/v1/football_live_data?competition_name=eq.' + encodeURIComponent(compName), {
     method: 'PATCH',
     headers: {
@@ -67,16 +76,24 @@ async function syncCompetitionData(compCode, compName) {
 
 async function runMainSync() {
   try {
-    // Run the sync engine for the Premier League (PL)
+    // Stage 1: Synchronize the English Premier League (PL)
     await syncCompetitionData('PL', 'Premier League');
     
-    console.log("[THROTTLE] Cooling down for 10 seconds to avoid free API limit blocks...");
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    // Safety cooling pause to protect the free API tier request throttle limit rules
+    console.log("[THROTTLE] Cooling down for 12 seconds to avoid limit errors...");
+    await new Promise(resolve => setTimeout(resolve, 12000));
     
-    // Run the sync engine for La Liga (PD)
+    // Stage 2: Synchronize La Liga (PD)
     await syncCompetitionData('PD', 'La Liga');
 
-    console.log("[COMPLETE] Everything updated perfectly on autopilot!");
+    // Safety cooling pause before triggering tournament updates
+    console.log("[THROTTLE] Cooling down for 12 seconds to avoid limit errors...");
+    await new Promise(resolve => setTimeout(resolve, 12000));
+
+    // Stage 3: Synchronize the UEFA Champions League (CL)
+    await syncCompetitionData('CL', 'Champions League');
+
+    console.log("[COMPLETE] Premier League, La Liga, and UCL updated perfectly on autopilot!");
     process.exit(0);
   } catch (err) {
     console.error("\n❌ CRITICAL SYNC ENGINE FAILURE:");
@@ -86,4 +103,3 @@ async function runMainSync() {
 }
 
 runMainSync();
-
